@@ -20,6 +20,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
               params = list(),
               url = NA,
               data = NA,
+              points = NA,
+              zone = NA,
             
             
               initialize = function(player_type = NULL, team = NULL,
@@ -28,7 +30,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 message('Setting parameters for request')
                 self$player_type <<- player_type
                 self$team <<- team
-                self$hfSea <<- season
+                self$hfSea <<- paste0(season, '%7C')
                 self$params <<- params
                 self$data <<- NA
                 self$url <<- private$base_url
@@ -192,12 +194,88 @@ stat_cast <- R6::R6Class('stat_cast_data',
         
         plot(x = data$plate_x, y = data$plate_z, type = 'p')
         
+      },
+      get_avg_pitch_data= function(player, values, filter_pitch){
+        
+        if(!values %in% c('release_speed', 'release_spin_rate')){
+          
+          stop('values much be either release_speed or release spin rate')
+          
+        }
+        
+        title <- paste(player,' ', filter_pitch)
+        
+        message('Creating plot for ', player, "'s", " ", filter_pitch, " ", values)
+        
+        if(values == 'release_speed'){
+          
+          y_lab <- 'Velocity (MPH)'
+          x_lab <- 'Game Date'
+          
+          data <- self$data %>% filter(pitch_name == filter_pitch &
+                                         player_name == player) %>%
+            group_by(game_date) %>%
+            mutate(min_vel = min(as.numeric(release_speed)),
+                   max_vel = max(as.numeric(release_speed)),
+                   avg_vel = mean(as.numeric(release_speed)))
+          
+          
+          data <- data %>% select(game_date, min_vel, max_vel, avg_vel) %>% 
+            distinct(.keep_all = TRUE) %>%
+            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
+            filter(def == 'avg_vel') 
+          
+          
+        }
+        
+        if(values == 'release_spin_rate'){
+          
+          y_lab <- 'Spin Rate'
+          x_lab <- 'Game Date'
+          
+          data <- self$data %>% filter(pitch_name == filter_pitch &
+                                         player_name == player) %>%
+            group_by(game_date) %>%
+            mutate(min_spn = min(as.numeric(release_spin_rate)),
+                   max_spn = max(as.numeric(release_spin_rate)),
+                   avg_spn = mean(as.numeric(release_spin_rate)))
+          
+          
+          data <- data %>% select(game_date, min_spn, max_spn, avg_spn) %>% 
+            distinct(.keep_all = TRUE) %>%
+            gather(min_spn, max_spn, avg_spn, key = 'def', value = 'vals') %>%
+            filter(def == 'avg_spn')
+        
+          
+        }
+        
+        return(data)
+        
+      },
+      
+      
+      show_pitch_mix = function(player, min = NULL, max = NULL){
+        
+        if(self$player_tye != 'pitcher'){
+          
+          stop("Cant get pitch mix, data is for hitters")
+          
+          
+        }
+        
+        data <- data %>% filter(player_name == 'Julio Teheran') %>%
+          select(pitch_type) %>%
+          murate()
+        
+        mix <- table(data)
+        
+        mix <- data.frame(counts = mix[1:length(mix)])
+        names(mix) <- c('pitch_type', 'counts')
+        mix$pct <- round(mix$counts/sum(mix$counts) *100, 2)
+        
+        
+        
       }
-      
-      
-      
-      
-      
       
       
       ))
