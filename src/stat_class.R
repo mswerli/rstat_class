@@ -140,11 +140,16 @@ stat_cast <- R6::R6Class('stat_cast_data',
             gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
             filter(def == 'avg_vel') 
           
-          plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
-               ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
-                        round(max(data$vals) + (max(data$vals) * .005))),
-               xlab = x_lab, ylab = y_lab,
-               main = title)
+          group <- data %>% filter(def %in% c('min_vel', 'max_vel'))
+          
+          ggplot(data, aes(x = game_date, y = vals)) + geom_point() 
+          
+          
+          # plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
+          #      ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
+          #               round(max(data$vals) + (max(data$vals) * .005))),
+          #      xlab = x_lab, ylab = y_lab,
+          #      main = title)
           
           
         }
@@ -211,7 +216,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
           y_lab <- 'Velocity (MPH)'
           x_lab <- 'Game Date'
           
-          data <- self$data %>% filter(pitch_name == filter_pitch &
+          data <- data %>% filter(pitch_name == filter_pitch &
                                          player_name == player) %>%
             group_by(game_date) %>%
             mutate(min_vel = min(as.numeric(release_speed)),
@@ -221,8 +226,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
           data <- data %>% select(game_date, min_vel, max_vel, avg_vel) %>% 
             distinct(.keep_all = TRUE) %>%
-            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_vel') 
+            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals')
           
           
         }
