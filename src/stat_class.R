@@ -80,8 +80,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
         unlink(file_name)
         
         self$data <<- df
-      
-        
+    
         
       },
       
