@@ -140,16 +140,9 @@ stat_cast <- R6::R6Class('stat_cast_data',
             gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
             filter(def == 'avg_vel') 
           
-          group <- data %>% filter(def %in% c('min_vel', 'max_vel'))
-          
-          ggplot(data, aes(x = game_date, y = vals)) + geom_point() 
-          
-          
-          # plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
-          #      ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
-          #               round(max(data$vals) + (max(data$vals) * .005))),
-          #      xlab = x_lab, ylab = y_lab,
-          #      main = title)
+          ggplot(data, aes(x = game_date, y = vals)) + geom_boxplot(width = .0005) +
+            geom_point(aes(x = game_date, y = vals)) +
+            xlab('Game Date') + ylab('Velocity') + ggtitle(title)
           
           
         }
@@ -169,14 +162,11 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
           data <- data %>% select(game_date, min_spn, max_spn, avg_spn) %>% 
             distinct(.keep_all = TRUE) %>%
-            gather(min_spn, max_spn, avg_spn, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_spn')
+            gather(min_spn, max_spn, avg_spn, key = 'def', value = 'vals') 
           
-          plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
-               ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
-                        round(max(data$vals) + (max(data$vals) * .005))),
-               xlab = x_lab, ylab = y_lab,
-               main = title)
+          ggplot(data, aes(x = game_date, y = vals)) + geom_boxplot(width = .0005) +
+            geom_point(aes(x = game_date, y = vals)) +
+            xlab('Game Date') + ylab('Spin Rate') + ggtitle(title)
           
         }
         
@@ -195,8 +185,10 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
         }
         
+        data <- data %>% select(pitch_type, plate_x, plate_z)
         
-        plot(x = data$plate_x, y = data$plate_z, type = 'p')
+        
+        ggplot(data, aes(x = plate_x, y = plate_z, col = pitch_type)) + geom_point()
         
       },
       get_avg_pitch_data= function(player, values, filter_pitch){
@@ -275,6 +267,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
         mix <- data.frame(counts = mix[1:length(mix)])
         names(mix) <- c('pitch_type', 'counts')
         mix$pct <- round(mix$counts/sum(mix$counts) *100, 2)
+        
+        gplot(data, aes(x = game_date, y = vals)) + geom_point()
         
         
         
