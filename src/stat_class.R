@@ -20,7 +20,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
               params = list(),
               url = NA,
               data = NA,
-              points = NA,
+              strike_zone = NA,
               zone = NA,
             
             
@@ -34,10 +34,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 self$params <<- params
                 self$data <<- NA
                 self$url <<- private$base_url
-                self$points <<- list(top = 3.5,
-                                  bot = 1.6,
-                                  in_ = -0.85,
-                                  out = 0.85)
+                self$strike_zone <<- geom_rect(xmin = -.85, xmax = .85, ymin = 1.6, ymax = 3.4,
+                                               color = 'Black', fill = NA)
                 self$zone <<-  data.frame(
                                     x=c(self$in_, self$in_, self$out, self$out, self$in_),
                                     y=c(self$bot, self$top, self$top, self$bot, self$bot)
@@ -62,8 +60,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 }
                 
                 self$data <<- self$get_data(self$url)
-                self$data <<- self$clean_data()
-                
+                # self$data <<- self$clean_data()
+                # 
               message('Stat Cast instance initiated for ', all_params)  
                 
         },
@@ -137,12 +135,11 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
           data <- data %>% select(game_date, min_vel, max_vel, avg_vel) %>% 
             distinct(.keep_all = TRUE) %>%
-            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_vel') 
+            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') 
           
-          ggplot(data, aes(x = game_date, y = vals)) + geom_boxplot(width = .0005) +
+          return(ggplot(data, aes(x = game_date, y = vals)) + geom_boxplot(width = .0005) +
             geom_point(aes(x = game_date, y = vals)) +
-            xlab('Game Date') + ylab('Velocity') + ggtitle(title)
+            xlab('Game Date') + ylab('Velocity') + ggtitle(title))
           
           
         }
@@ -185,10 +182,24 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
         }
         
-        data <- data %>% select(pitch_type, plate_x, plate_z)
+        data <- data %>% select(pitch_type, plate_x, plate_z) %>%
+          mutate(plate_x = as.double(plate_x),
+                 plate_z = as.double(plate_z),
+                 in_zone = plate_x >= -.85 & plate_x <= .85 &
+                           plate_z >= 1.6 & plate_z <= 3.4)
         
         
-        ggplot(data, aes(x = plate_x, y = plate_z, col = pitch_type)) + geom_point()
+        ggplot(data, aes(x = plate_x, y = plate_z)) +
+          geom_jitter(aes(col = in_zone))+
+          
+          geom_rect(xmin = -.85, xmax = .85, ymin = 1.6, ymax = 3.4,
+                    color = 'Black', fill = NA)+
+          scale_x_continuous(limits = c(-1.5,1.5), breaks = seq(-1.5,1.5,.5)) +
+          scale_y_continuous(limits = c(1,4), breaks = seq(1,4,.5))
+          
+      
+        
+        
         
       },
       get_avg_pitch_data= function(player, values, filter_pitch){
