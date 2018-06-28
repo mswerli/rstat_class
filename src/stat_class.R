@@ -21,6 +21,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
               url = NA,
               data = NA,
               strike_zone = NA,
+              zone_axes = NA,
               zone = NA,
             
             
@@ -34,12 +35,14 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 self$params <<- params
                 self$data <<- NA
                 self$url <<- private$base_url
-                self$strike_zone <<- geom_rect(xmin = -.85, xmax = .85, ymin = 1.6, ymax = 3.4,
+                self$strike_zone <<- geom_rect(xmin = -.85, xmax = .85, 
+                                               ymin = 1.6, ymax = 3.4,
                                                color = 'Black', fill = NA)
-                self$zone <<-  data.frame(
-                                    x=c(self$in_, self$in_, self$out, self$out, self$in_),
-                                    y=c(self$bot, self$top, self$top, self$bot, self$bot)
-                                  )
+                
+                self$axes <<- list(x = scale_x_continuous(limits = c(-1.5,1.5), 
+                                                          breaks = seq(-1.5,1.5,.5)) +
+                                   y = scale_y_continuous(limits = c(1,4), 
+                                                          breaks = seq(1,4,.5)))
                 
                 
                 message('Combining all params')
@@ -60,8 +63,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 }
                 
                 self$data <<- self$get_data(self$url)
-                # self$data <<- self$clean_data()
-                # 
+                self$data <<- self$clean_data()
+
               message('Stat Cast instance initiated for ', all_params)  
                 
         },
@@ -137,9 +140,11 @@ stat_cast <- R6::R6Class('stat_cast_data',
             distinct(.keep_all = TRUE) %>%
             gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') 
           
-          return(ggplot(data, aes(x = game_date, y = vals)) + geom_boxplot(width = .0005) +
-            geom_point(aes(x = game_date, y = vals)) +
-            xlab('Game Date') + ylab('Velocity') + ggtitle(title))
+         ggplot(data, aes(x = game_date, y = vals)) + 
+          geom_boxplot(width = .0005) +
+          geom_point(aes(x = game_date, y = vals)) +
+          xlab('Game Date') + ylab('Velocity') +
+          ggtitle(title)
           
           
         }
@@ -191,14 +196,9 @@ stat_cast <- R6::R6Class('stat_cast_data',
         
         ggplot(data, aes(x = plate_x, y = plate_z)) +
           geom_jitter(aes(col = in_zone))+
-          
-          geom_rect(xmin = -.85, xmax = .85, ymin = 1.6, ymax = 3.4,
-                    color = 'Black', fill = NA)+
-          scale_x_continuous(limits = c(-1.5,1.5), breaks = seq(-1.5,1.5,.5)) +
-          scale_y_continuous(limits = c(1,4), breaks = seq(1,4,.5))
-          
-      
-        
+          self$strike_zone+
+          self$axes$x+
+          self$axes$y
         
         
       },
