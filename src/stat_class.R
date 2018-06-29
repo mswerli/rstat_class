@@ -20,7 +20,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
               params = list(),
               url = NA,
               data = NA,
-              points = NA,
+              strike_zone = NA,
+              zone_axes = NA,
               zone = NA,
             
             
@@ -34,14 +35,14 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 self$params <<- params
                 self$data <<- NA
                 self$url <<- private$base_url
-                self$points <<- list(top = 3.5,
-                                  bot = 1.6,
-                                  in_ = -0.85,
-                                  out = 0.85)
-                self$zone <<-  data.frame(
-                                    x=c(self$in_, self$in_, self$out, self$out, self$in_),
-                                    y=c(self$bot, self$top, self$top, self$bot, self$bot)
-                                  )
+                self$strike_zone <<- geom_rect(xmin = -.85, xmax = .85, 
+                                               ymin = 1.6, ymax = 3.4,
+                                               color = 'Black', fill = NA)
+                
+                self$zone_axes <<- list(x = scale_x_continuous(limits = c(-1.5,1.5), 
+                                                          breaks = seq(-1.5,1.5,.5)),
+                                   y = scale_y_continuous(limits = c(1,4), 
+                                                          breaks = seq(1,4,.5)))
                 
                 
                 message('Combining all params')
@@ -63,7 +64,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
                 
                 self$data <<- self$get_data(self$url)
                 self$data <<- self$clean_data()
-                
+
               message('Stat Cast instance initiated for ', all_params)  
                 
         },
@@ -80,8 +81,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
         unlink(file_name)
         
         self$data <<- df
-      
-        
+    
         
       },
       
@@ -100,7 +100,11 @@ stat_cast <- R6::R6Class('stat_cast_data',
         
         dep_index <- which(!str_detect(names(data), '_deprecated'))
         
-        data <- data[,dep_index]
+        data <- data[,dep_index] %>% 
+          mutate(plate_x = as.double(plate_x),
+                 plate_z = as.double(plate_z),
+                 in_zone = plate_x >= -.85 & plate_x <= .85 &
+                   plate_z >= 1.6 & plate_z <= 3.4)
         
         if(param_get(self$url, 'player_type') == 'pitcher'){
           
@@ -108,6 +112,34 @@ stat_cast <- R6::R6Class('stat_cast_data',
         }
         
         self$data <<- data
+        
+      },
+      
+      pitch_timeseries_group = function(player, values, filter_pitch){
+        
+        
+        data <- self$data %>% filter(pitch_name == filter_pitch &
+                                       player_name == player) %>%
+          mutate(game_date = as.Date(game_date),
+                 release_speed = as.numeric(release_speed),
+                 release_spin_rate = as.numeric(release_spin_rate))
+        data$vals <- data[,values]
+        
+        data <- data %>%
+          group_by(game_date) %>%
+          mutate(min_val = min(as.numeric(vals)),
+                 max_val = max(as.numeric(vals)),
+                 avg_val = mean(as.numeric(vals)))
+        
+        
+        data <- data %>% 
+          select(game_date, min_val, max_val, avg_val) %>% 
+          distinct(.keep_all = TRUE) %>%
+          gather(min_val, max_val, avg_val, 
+                 key = 'def', value = 'vals')
+        
+        return(data)
+        
         
       },
       
@@ -119,62 +151,39 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
         }
         
-        title <- paste(player,' ', filter_pitch)
+        data <- self$pitch_timeseries_group(player, values, filter_pitch)
+        
+        title <- ggtitle(paste(player,' ', filter_pitch))
+        
+        months <-  unique(sort(floor_date(as.Date(data$game_date), 'month')))
         
         message('Creating plot for ', player, "'s", " ", filter_pitch, " ", values)
         
         if(values == 'release_speed'){
           
-          y_lab <- 'Velocity (MPH)'
-          x_lab <- 'Game Date'
+          message('Setting Title')
           
-          data <- self$data %>% filter(pitch_name == filter_pitch &
-                                    player_name == player) %>%
-            group_by(game_date) %>%
-            mutate(min_vel = min(as.numeric(release_speed)),
-                   max_vel = max(as.numeric(release_speed)),
-                   avg_vel = mean(as.numeric(release_speed)))
-          
-          
-          data <- data %>% select(game_date, min_vel, max_vel, avg_vel) %>% 
-            distinct(.keep_all = TRUE) %>%
-            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_vel') 
-          
-          plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
-               ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
-                        round(max(data$vals) + (max(data$vals) * .005))),
-               xlab = x_lab, ylab = y_lab,
-               main = title)
-          
-          
+          y_lab <- xlab('Velocity (MPH)')
+          x_lab <- ylab('Game Date')
         }
         
         if(values == 'release_spin_rate'){
           
-          y_lab <- 'Spin Rate'
-          x_lab <- 'Game Date'
+          y_lab <- ylab('Spin Rate')
+          x_lab <- xlab('Game Date')
           
-          data <- self$data %>% filter(pitch_name == filter_pitch &
-                                    player_name == player) %>%
-            group_by(game_date) %>%
-            mutate(min_spn = min(as.numeric(release_spin_rate)),
-                   max_spn = max(as.numeric(release_spin_rate)),
-                   avg_spn = mean(as.numeric(release_spin_rate)))
-          
-          
-          data <- data %>% select(game_date, min_spn, max_spn, avg_spn) %>% 
-            distinct(.keep_all = TRUE) %>%
-            gather(min_spn, max_spn, avg_spn, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_spn')
-          
-          plot(y = as.numeric(data$vals), x = as.Date(data$game_date), type = 'l',
-               ylim = c(round(min(data$vals) - (min(data$vals) * .005)),
-                        round(max(data$vals) + (max(data$vals) * .005))),
-               xlab = x_lab, ylab = y_lab,
-               main = title)
           
         }
+        
+        
+        plot <- ggplot(data, aes(x = game_date, y = vals, group = game_date)) + 
+          geom_boxplot(width = .0005) +
+          geom_point(aes(x = game_date, y = vals)) +
+          x_lab + y_lab +
+          ggtitle(title) +
+          scale_x_date(date_breaks = "1 month")
+        
+        return(plot)
         
         
       },
@@ -191,65 +200,15 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
         }
         
+        data <- data %>% select(pitch_type, plate_x, plate_z, in_zone)
         
-        plot(x = data$plate_x, y = data$plate_z, type = 'p')
+        plot <- ggplot(data, aes(x = plate_x, y = plate_z)) +
+          geom_jitter(aes(col = in_zone))+
+          self$strike_zone+
+          self$zone_axes$x+
+          self$zone_axes$y 
         
-      },
-      get_avg_pitch_data= function(player, values, filter_pitch){
-        
-        if(!values %in% c('release_speed', 'release_spin_rate')){
-          
-          stop('values much be either release_speed or release spin rate')
-          
-        }
-        
-        title <- paste(player,' ', filter_pitch)
-        
-        message('Creating plot for ', player, "'s", " ", filter_pitch, " ", values)
-        
-        if(values == 'release_speed'){
-          
-          y_lab <- 'Velocity (MPH)'
-          x_lab <- 'Game Date'
-          
-          data <- self$data %>% filter(pitch_name == filter_pitch &
-                                         player_name == player) %>%
-            group_by(game_date) %>%
-            mutate(min_vel = min(as.numeric(release_speed)),
-                   max_vel = max(as.numeric(release_speed)),
-                   avg_vel = mean(as.numeric(release_speed)))
-          
-          
-          data <- data %>% select(game_date, min_vel, max_vel, avg_vel) %>% 
-            distinct(.keep_all = TRUE) %>%
-            gather(min_vel, max_vel, avg_vel, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_vel') 
-          
-          
-        }
-        
-        if(values == 'release_spin_rate'){
-          
-          y_lab <- 'Spin Rate'
-          x_lab <- 'Game Date'
-          
-          data <- self$data %>% filter(pitch_name == filter_pitch &
-                                         player_name == player) %>%
-            group_by(game_date) %>%
-            mutate(min_spn = min(as.numeric(release_spin_rate)),
-                   max_spn = max(as.numeric(release_spin_rate)),
-                   avg_spn = mean(as.numeric(release_spin_rate)))
-          
-          
-          data <- data %>% select(game_date, min_spn, max_spn, avg_spn) %>% 
-            distinct(.keep_all = TRUE) %>%
-            gather(min_spn, max_spn, avg_spn, key = 'def', value = 'vals') %>%
-            filter(def == 'avg_spn')
-        
-          
-        }
-        
-        return(data)
+        return(plot)
         
       },
       
@@ -273,9 +232,12 @@ stat_cast <- R6::R6Class('stat_cast_data',
         names(mix) <- c('pitch_type', 'counts')
         mix$pct <- round(mix$counts/sum(mix$counts) *100, 2)
         
+        gplot(data, aes(x = game_date, y = vals)) + geom_point()
+        
         
         
       }
+
       
       
       ))
