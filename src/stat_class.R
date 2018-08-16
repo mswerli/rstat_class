@@ -23,9 +23,11 @@ stat_cast <- R6::R6Class('stat_cast_data',
               strike_zone = NA,
               zone_axes = NA,
               zone = NA,
+              plots = list(),
+              mix = list(),
             
             
-              initialize = function(player_type = NULL, team = NULL,
+              initialize = function(download = TRUE, player_type = NULL, team = NULL,
                                   season = NULL, params = list()){
               
                 message('Setting parameters for request')
@@ -51,8 +53,7 @@ stat_cast <- R6::R6Class('stat_cast_data',
                                   team = self$team,
                                   hfSea = self$hfSea),
                                params)
-                print(self$url)
-              
+                
                 
                 for(a in names(all_params)){
                   message('Adding ', a, ' to url as parameter' )  
@@ -62,8 +63,12 @@ stat_cast <- R6::R6Class('stat_cast_data',
                   
                 }
                 
-                self$data <<- self$get_data(self$url)
-                self$data <<- self$clean_data()
+                if(download){
+                
+                  self$data <<- self$get_data(self$url)
+                  self$data <<- self$clean_data()
+                  
+                }
 
               message('Stat Cast instance initiated for ', all_params)  
                 
@@ -100,18 +105,60 @@ stat_cast <- R6::R6Class('stat_cast_data',
         
         dep_index <- which(!str_detect(names(data), '_deprecated'))
         
-        data <- data[,dep_index] %>% 
-          mutate(plate_x = as.double(plate_x),
-                 plate_z = as.double(plate_z),
-                 in_zone = plate_x >= -.85 & plate_x <= .85 &
-                   plate_z >= 1.6 & plate_z <= 3.4)
+        data <- data[,dep_index]
         
         if(param_get(self$url, 'player_type') == 'pitcher'){
           
           data<- data[,names(data) %in% private$pitch_fields]
         }
         
+        data <- data %>% 
+          mutate(plate_x = as.double(plate_x),
+                 plate_z = as.double(plate_z),
+                 in_zone = plate_x >= -.85 & plate_x <= .85 &
+                   plate_z >= 1.6 & plate_z <= 3.4)
+        
+       
+        
         self$data <<- data
+        
+        return(data)
+        
+      },
+      
+      set_params = function(params = list()){
+        
+        if(class(params) != 'list'){
+          
+          stop('Url parameters must be passed as a named list \n
+               See https://www.fangraphs.com/tht/research-notebook-new-format-for-statcast-data-export-at-baseball-savant/')
+          
+        }
+        
+        for(a in names(params)){
+          message('Adding ', a, ' to url as parameter' )  
+          self$url <<- param_set(self$url, a, 
+                                 all_params[[a]])
+          message('Done with ', a)
+          
+        }
+        
+      },
+        
+      
+      save_data = function(path){
+        
+        if(is.na(self$data)){
+        
+          download.file(url = self$url, 
+                      destfile = path)
+        }else{
+          
+          write.csv(self$data, file = path)
+        }
+        
+        
+        message("Data saved to", path)
         
       },
       
@@ -143,7 +190,39 @@ stat_cast <- R6::R6Class('stat_cast_data',
         
       },
       
-      create_avg_pitch_chart = function(player, values, filter_pitch){
+      compile_pitch_mix = function(player){
+        
+        if(self$player_tye != 'pitcher'){
+          
+          stop("Cant get pitch mix, data is for hitters")
+          
+          
+        }
+        
+        data <- self$data %>% filter(player_name == player) %>%
+          filter(pitch_type != 'IN')
+        
+        data$pitch_type <- ifelse(data$pitch_type == 'FT', 'FF', data$pitch_type)
+        
+        mix <- data %>% group_by(game_date) %>% 
+          select(game_date, pitch_type) %>%
+          mutate(total_pitches = n())
+        
+        mix <- mix %>%
+          group_by(game_date, pitch_type) %>%
+          mutate(of_pitch = n()) %>%
+          ungroup() %>%
+          distinct(.keep_all = TRUE)
+        
+        mix$pitch_percentage <- mix$of_pitch / mix$total_pitches
+        
+        self$mix[[player]] <<- mix
+        
+        return(mix)
+        
+      },
+      
+      create_avg_pitch_chart = function(player, values, filter_pitch, save_plot = FALSE){
         
         if(!values %in% c('release_speed', 'release_spin_rate')){
           
@@ -163,8 +242,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
           
           message('Setting Title')
           
-          y_lab <- xlab('Velocity (MPH)')
-          x_lab <- ylab('Game Date')
+          x_lab <- xlab('Velocity (MPH)')
+          y_lab <- ylab('Game Date')
         }
         
         if(values == 'release_spin_rate'){
@@ -183,18 +262,27 @@ stat_cast <- R6::R6Class('stat_cast_data',
           ggtitle(title) +
           scale_x_date(date_breaks = "1 month")
         
+        if(save_plot){
+          
+          self$plots[[title$title]] <- plot
+          
+        }
+        
         return(plot)
         
         
       },
       
-      create_pitch_scatter = function(player, filter_pitch = NULL){
+      create_pitch_scatter = function(player, filter_pitch = NULL, save_plot = FALSE){
         
         if(!is.null(filter_pitch)){
+          
+          title <- ggtitle(paste(player,' ', filter_pitch,':', 'Pitch scatter'))
           
           data <- self$data %>% filter(pitch_name == filter_pitch &
                                     player_name == player)
         }else{
+          title <- ggtitle(paste(player,' ', 'Pitch scatter'))
           
           data <- self$data %>% filter(player_name == player)
           
@@ -208,32 +296,40 @@ stat_cast <- R6::R6Class('stat_cast_data',
           self$zone_axes$x+
           self$zone_axes$y 
         
+        if(save_plot){
+          
+          
+          self$plots[[title$title]] <- plot
+          
+        }
+        
         return(plot)
         
       },
       
+     
       
-      show_pitch_mix = function(player, min = NULL, max = NULL){
+      
+      show_pitch_mix = function(player, save_plot = TRUE, min = NULL, max = NULL){
         
-        if(self$player_tye != 'pitcher'){
+        mix <- compile_pitch_mix(player)
+        
+        title <- ggtitle(paste(player, 'Pitch Mix', setp = ' '))
+      
+        
+        plot <- ggplot(mix, aes(x = game_date, y = pitch_percentage, col = pitch_type)) + 
+          geom_point() +
+          geom_line() +
+          title
+        
+        
+        if(save_plot){
           
-          stop("Cant get pitch mix, data is for hitters")
-          
+          self$plots[[title$title]] <<- plot
           
         }
         
-        data <- data %>% filter(player_name == 'Julio Teheran') %>%
-          select(pitch_type) %>%
-          murate()
-        
-        mix <- table(data)
-        
-        mix <- data.frame(counts = mix[1:length(mix)])
-        names(mix) <- c('pitch_type', 'counts')
-        mix$pct <- round(mix$counts/sum(mix$counts) *100, 2)
-        
-        gplot(data, aes(x = game_date, y = vals)) + geom_point()
-        
+        return(plot)
         
         
       }
