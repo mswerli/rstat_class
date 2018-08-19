@@ -291,7 +291,8 @@ stat_cast <- R6::R6Class('stat_cast_data',
         data <- data %>% select(pitch_type, plate_x, plate_z, in_zone)
         
         plot <- ggplot(data, aes(x = plate_x, y = plate_z)) +
-          geom_jitter(aes(col = in_zone))+
+          geom_bin2d(bins = 12) + 
+          scale_fill_continuous(low="blue",high="red") +
           self$strike_zone+
           self$zone_axes$x+
           self$zone_axes$y 
