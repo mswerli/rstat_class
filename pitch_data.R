@@ -1,15 +1,18 @@
 source('src/init.R')
-source("src/stat_class.R")
+source('data_fetcher.R')
+source('pitcher.R')
 
+folty<- pitcher$new(
+                        player_type = 'pitcher',
+                        player_name='Mike Foltynewicz',
+                        batters_lookup = NULL,
+                        pitchers_lookup=592314,
+                        team='ATL',
+                        season=2019)
 
-pitchers <- stat_cast$new(player_type = 'pitcher', 
-                          team = 'NYM',
-                          season = 2018)
+folty$show_pitch_mix()
 
-pitchers$create_avg_pitch_chart(player = 'Jacob deGrom', 
-                                values = 'release_speed',
-                                filter_pitch = '4-Seam Fastball')
+folty$create_pitch_scatter(filter_pitch = 'Slider')
 
-pitchers$create_pitch_scatter(player = 'Jacob deGrom',
-                              filter_pitch = '4-Seam Fastball')
-
+folty$create_avg_pitch_chart(value='release_speed', 
+                             filter_pitch = '4-Seam Fastball')
