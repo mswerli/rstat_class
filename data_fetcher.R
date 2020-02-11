@@ -105,13 +105,9 @@ data_fetcher <- R6::R6Class(
     clean_data = function() {
       data <- self$data
       
-      print(NCOL(data))
-      
       for (a in names(data)) {
         data[, a][data[, a] == 'null' | data[, a] == ''] <- NA
       }
-      
-      print(NCOL(data))
       
       dep_index <- which(!str_detect(names(data), '_deprecated'))
       
@@ -126,6 +122,10 @@ data_fetcher <- R6::R6Class(
         )
       
       self$data <<- data
+      
+      if(NROW(data) == 0){
+        warning("No rows of data returned, make sure you are requesting data for a season that has started")
+      }
       
       return(data)
       

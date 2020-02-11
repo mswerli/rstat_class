@@ -1,4 +1,4 @@
-pitcher <- R6::R6Class(
+pitcher_instance <- R6::R6Class(
   "Pitcher",
   inherit = data_fetcher,
   public = list(
@@ -7,6 +7,8 @@ pitcher <- R6::R6Class(
     data=NA,
     pitch_mix_game=NA,
     pitch_mix_agg=NA,
+    pitch_names=NA,
+    visualizations=c('Pitch Mix', 'Pitch Heat Map', "Pitch Time Series"),
     
     initialize = function(download = TRUE,
                            player_type = NULL,
@@ -29,7 +31,18 @@ pitcher <- R6::R6Class(
                        params=params)
       
       self$data <<- self$data[, names(self$data) %in% self$columns]
-      self$data <- self$clean_data()
+      self$data <<- self$clean_data()
+      self$pitch_names <<- self$get_pitch_types()
+      
+      
+    },
+    
+    get_pitch_types = function(){
+      
+      pitches <- self$data[which(!is.na(self$data$pitch_name)),]
+      pitches <- unique(pitches$pitch_name)
+      
+      return(pitches)
       
       
     },
@@ -116,12 +129,12 @@ pitcher <- R6::R6Class(
       
       data <-self$pitch_timeseries_group(values, filter_pitch)
       
-      title <- ggtitle(paste(player, ' ', filter_pitch))
+      title <- ggtitle(paste(self$player_name, ' ', filter_pitch))
       
       months <-
         unique(sort(floor_date(as.Date(data$game_date), 'month')))
       
-      message('Creating plot for ', player, "'s", " ", filter_pitch, " ", values)
+      message('Creating plot for ', self$player_name, "'s", " ", filter_pitch, " ", values)
       
       if (values == 'release_speed') {
         message('Setting Title')
@@ -163,7 +176,7 @@ pitcher <- R6::R6Class(
         
         data <- self$data %>% filter(pitch_name == filter_pitch)
       } else{
-        title <- ggtitle(paste(player, ' ', 'Pitch scatter'))
+        title <- ggtitle(paste(self$player_name, ' ', 'Pitch scatter'))
         
         data <- self$data
         
