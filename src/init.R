@@ -11,6 +11,8 @@ library(R6)
 library(shiny)
 library(shinyjs)
 
-source('src/shiny_utils')
+source('src/shiny_utils.R')
 source('data_fetcher.R')
 source('pitcher.R')
+teams <- jsonlite::read_json('config/team_ref.json', 
+                             simplifyVector = TRUE)

@@ -1,7 +1,55 @@
 data_fetcher <- R6::R6Class(
   'data_fetcher',
   private = list(
-    base_url = readLines('config/base-url.txt')
+    base_url = readLines('config/base-url.txt'),
+    
+    set_field_attr = function(){
+      
+      self$x_limit <<- xlim(0,250)
+      self$y_limit <<- ylim(-250, 0)
+      self$right_line <<- geom_segment(x=128, xend = 33, y=-208, yend = -100)
+      self$left_line <<- geom_segment(x=128, xend = 223, y=-208, yend = -100)
+      self$fence <<- geom_curve(x = 83, xend = 173, y = -155, yend = -156,
+                                curvature = -.65, linetype = "dotted")
+      self$infield <<- geom_curve(x = 33, xend = 223, y = -100, yend = -100,
+                                  curvature = -.65)
+      
+      self$spray_chart_base <<-
+        ggplot(self$data, aes(x = as.numeric(hc_x), y = -as.numeric(hc_y))) +
+        geom_point(fill = "blue",
+                   color = "grey20", alpha = .75,
+                   shape = 21, size = 1, stroke = 1)+
+        self$x_limit+
+        self$y_limit+
+        self$infield+
+        self$fence+
+        self$right_line +
+        self$left_line
+      
+    },
+    
+    set_strike_zone = function(){
+      
+      self$strike_zone <<-
+        geom_rect(
+          xmin = -.85,
+          xmax = .85,
+          ymin = 1.6,
+          ymax = 3.4,
+          color = 'Black',
+          fill = NA
+        )
+      
+      self$zone_axes <<-
+        list(x = scale_x_continuous(
+          limits = c(-1.5, 1.5),
+          breaks = seq(-1.5, 1.5, .5)
+        ),
+        y = scale_y_continuous(limits = c(1, 4),
+                               breaks = seq(1, 4, .5)))
+      
+      
+    }
   ),
   public = list(
     player_type = NA,
@@ -16,6 +64,13 @@ data_fetcher <- R6::R6Class(
     strike_zone = NA,
     zone_axes = NA,
     zone = NA,
+    x_limit = NA,
+    y_limit = NA,
+    right_line= NA,
+    left_line = NA,
+    fence = NA,
+    infield = NA,
+    spray_chart_base=NA,
     
     initialize = function(download = TRUE,
                           player_name = NULL,
@@ -35,30 +90,13 @@ data_fetcher <- R6::R6Class(
       self$params <<- params
       self$data <<- NA
       self$url <<- private$base_url
-      self$strike_zone <<-
-        geom_rect(
-          xmin = -.85,
-          xmax = .85,
-          ymin = 1.6,
-          ymax = 3.4,
-          color = 'Black',
-          fill = NA
-        )
-      
-      self$zone_axes <<-
-        list(x = scale_x_continuous(
-          limits = c(-1.5, 1.5),
-          breaks = seq(-1.5, 1.5, .5)
-        ),
-        y = scale_y_continuous(limits = c(1, 4),
-                               breaks = seq(1, 4, .5)))
       
       message('Combining all params')
       
       all_params <- c(list(
         player_type = self$player_type,
         team = self$team,
-        batters_lookup = self$batters_lookup,
+        'batters_lookup%5b%5d' = self$batters_lookup,
         'pitchers_lookup%5b%5d' = self$pitchers_lookup,
         hfSea = self$hfSea
       ),
@@ -81,6 +119,8 @@ data_fetcher <- R6::R6Class(
         self$data <<- self$clean_data()
         
       }
+      private$set_field_attr()
+      private$set_strike_zone()
       
       message('Stat Cast instance initiated for ', all_params)
       
@@ -118,7 +158,12 @@ data_fetcher <- R6::R6Class(
           plate_x = as.double(plate_x),
           plate_z = as.double(plate_z),
           in_zone = plate_x >= -.85 & plate_x <= .85 &
-            plate_z >= 1.6 & plate_z <= 3.4
+            plate_z >= 1.6 & plate_z <= 3.4,
+          outs_made = ifelse(str_detect(data$events, 'double_play'), 2,
+                             ifelse(str_detect(data$events, 'tripple_play'), 3,
+                              ifelse(data$events %in% c('field_out', 'force_out',
+                                                "fielders_choice","strikeout",
+                                                "sac_fly"), 1, 0)))
         )
       
       self$data <<- data

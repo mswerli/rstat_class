@@ -44,7 +44,10 @@
       "release_pos_y",
       "estimated_ba_using_speedangle",
       "estimated_woba_using_speedangle",
-      "pitch_name"
+      "pitch_name",
+      "event",
+      "outs_made",
+      "in_zone"
     ],
     
   "hit_fields": [
@@ -100,6 +103,8 @@
       "pitch_name" ,
       "in_zone",
       "plate_x",
-      "plate_z"
+      "plate_z",
+      "event",
+      "outs_made"
     ]
 }

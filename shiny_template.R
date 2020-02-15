@@ -1,6 +1,7 @@
 source('src/init.R')
 
-teams <- jsonlite::read_json('config/team_ref.json', simplifyVector = TRUE)
+teams <- jsonlite::read_json('config/team_ref.json', 
+                             simplifyVector = TRUE)
 
 ui <- fluidPage(
   
