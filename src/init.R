@@ -1,3 +1,4 @@
+options(stringsAsFactors = FALSE)
 library(urltools)
 library(stringr)
 library(stringi)
@@ -7,4 +8,11 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(R6)
-options(stringsAsFactors = FALSE)
+library(shiny)
+library(shinyjs)
+
+source('src/shiny_utils.R')
+source('data_fetcher.R')
+source('pitcher.R')
+teams <- jsonlite::read_json('config/team_ref.json', 
+                             simplifyVector = TRUE)
