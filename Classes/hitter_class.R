@@ -12,7 +12,6 @@ batter_instance <- R6::R6Class(
                           player_type = 'batter',
                           player_name= NULL,
                           batters_lookup = NULL,
-                          pitchers_lookup = NULL,
                           team = NULL,
                           season = NULL,
                           params = list()){
@@ -23,18 +22,26 @@ batter_instance <- R6::R6Class(
                        player_type=player_type,
                        player_name=player_name,
                        batters_lookup=batters_lookup,
-                       pitchers_lookup=pitchers_lookup,
                        team=team,
                        season=season,
                        params=params)
     },
     
-    compile_batted_timeseries = function(measure){
+    compile_batted_timeseries = function(measure, p_hand=c('L',"R"), pitch){
       
       message("Calculating 30 day running average of ", measure)
       
       data <- player_hitter$data %>% 
-        select(game_date, !!sym(measure)) %>%
+        filter(p_throws %in% p_hand)
+      
+      if(pitch != 'all'){
+        
+        data <- data %>%
+          filter(pitch_name %in% pitch)
+        
+      }
+      
+      data <- data %>%select(game_date, !!sym(measure), p_throws, pitch_type) %>%
         mutate(game_date = as.Date(game_date),
                value = as.numeric(!!sym(measure))) %>%
         select(-!!sym(measure)) %>%
@@ -49,41 +56,38 @@ batter_instance <- R6::R6Class(
       
     },
     
-    generate_outcome_timeseries = function(measure){
+    generate_outcome_timeseries = function(stat, p_hand = c('L','R'), pitch = 'all'){
       
-      data <- compile_batted_timeseries(mesaure )
+      data <- self$compile_batted_timeseries(measure = stat, p_hand, pitch)
       
       plot <- ggplot() +
         geom_line(data = data, aes(x = as.Date(game_date), y = value))  +
         scale_x_date(date_breaks = "1 month")
       
       return(plot)
-    }
+    },
     
-    generate_spary_chart = function(filters=list(), bucket=NA, shape=NA){
+    generate_spary_chart = function(filters=list(), bucket='None'){
       
-      data <- self$data
-      names(data)
-      
+      data <- self$data %>% filter(in_play)
+
       for(f in names(filters)){
         message('Filtering for ',f)
         data <- private$spary_filter(data, f, filters[[f]] )
       }
       
-      
       plot <- self$spray_chart_base
       
-      if(!is.na(bucket) & !is.na(shape)){
+      if(bucket != 'None'){
         
         row_check <- NROW(data)
         data <- data[which(!is.na(data[bucket])),]
-        data <- data[which(!is.na(data[shape])),]
         
         if(NROW(data) < row_check){
           
           message("Columns ", 
-                  bucket," ", shape, 
-                  " used for colors and shapes had NAs. ", 
+                  bucket, 
+                  " used for colors had NAs. ", 
                   row_check-NROW(data), " rows removed")
           
         }
@@ -91,49 +95,7 @@ batter_instance <- R6::R6Class(
         plot$data <- data
         plot$layers[[1]] <- geom_point(alpha = .75, 
                                        size = 1, stroke = 1,
-                                       aes_string(color = bucket, shape = shape))
-      }
-      
-      
-      
-      if(!is.na(bucket) & is.na(shape)){
-        
-        row_check <- NROW(data)
-        data <- data %>% filter(!is.na(sym(bucket)))
-        
-        if(NROW(data) < row_check){
-          
-          message("Column ", 
-                  bucket, 
-                  " used for colors had NAs. ", 
-                  row_check-NROW(data), " rows removed")
-          
-        }
-        
-        plot$layers[[1]] <- geom_point(alpha = .75,
-                                       shape = 21, size = 1, stroke = 1,
-                                       aes(color = bucket))
-        
-      }
-      
-      if(!is.na(shape) & is.na(bucket)){
-        
-        row_check <- NROW(data)
-        data <- data %>% filter(!is.na(!!sym(shape)))
-        
-        if(NROW(data) < row_check){
-          
-          message("Column ", 
-                  shape, 
-                  " used for shape had NAs. ", 
-                  row_check-NROW(data), " rows removed")
-          
-        }
-        
-        plot$layers[[1]] <- geom_point(fill = "blue",
-                                       color = "grey20", alpha = .75,
-                                       size = 1, stroke = 1, aes(shape = bucket))
-        
+                                       aes_string(color = bucket))
       }
       
       message('Returning plot')
@@ -152,7 +114,6 @@ batter_instance <- R6::R6Class(
     
     spary_filter = function(data, col, vals){
       message(names(vals))
-      
       
       data = data %>% filter(!!sym(col) %in% vals)
       return(data)

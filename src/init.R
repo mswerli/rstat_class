@@ -10,9 +10,11 @@ library(tidyr)
 library(R6)
 library(shiny)
 library(shinyjs)
+library(zoo)
 
 source('src/shiny_utils.R')
-source('data_fetcher.R')
-source('pitcher.R')
+source('classes/data_fetcher.R')
+source('classes/pitcher.R')
+source('classes/hitter_class.R')
 teams <- jsonlite::read_json('config/team_ref.json', 
                              simplifyVector = TRUE)

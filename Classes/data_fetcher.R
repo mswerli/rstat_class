@@ -76,7 +76,7 @@ data_fetcher <- R6::R6Class(
                           player_name = NULL,
                           player_type = NULL,
                           batters_lookup = NULL,
-                          pitchers_lookupp = NULL,
+                          pitchers_lookup = NULL,
                           team = NULL,
                           season = NULL,
                           params = list()) {
@@ -85,7 +85,7 @@ data_fetcher <- R6::R6Class(
       self$team <<- team
       self$player_name <<- player_name
       self$batters_lookup <<- batters_lookup
-      self$pitchers_lookup <<- pitchers_lookupp
+      self$pitchers_lookup <<- pitchers_lookup
       self$hfSea <<- paste0(season, '%7C')
       self$params <<- params
       self$data <<- NA
@@ -163,7 +163,8 @@ data_fetcher <- R6::R6Class(
                              ifelse(str_detect(data$events, 'tripple_play'), 3,
                               ifelse(data$events %in% c('field_out', 'force_out',
                                                 "fielders_choice","strikeout",
-                                                "sac_fly"), 1, 0)))
+                                                "sac_fly"), 1, 0))),
+          in_play = !is.na(launch_speed) & !is.na(launch_angle) & !events %in% c('foul',"strikeout","hit_by_pitch","catcher_interf")
         )
       
       self$data <<- data
