@@ -45,7 +45,7 @@
       "estimated_ba_using_speedangle",
       "estimated_woba_using_speedangle",
       "pitch_name",
-      "event",
+      "events",
       "outs_made",
       "in_zone"
     ],

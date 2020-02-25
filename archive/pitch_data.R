@@ -2,10 +2,8 @@ source('src/init.R')
 source('data_fetcher.R')
 source('pitcher.R')
 
-folty<- pitcher$new(
-                        player_type = 'pitcher',
-                        player_name='Mike Foltynewicz',
-                        batters_lookup = NULL,
+folty<- pitcher_instance$new(player_type = 'pitcher',
+                    player_name='Mike Foltynewicz',
                         pitchers_lookup=592314,
                         team='ATL',
                         season=2019)
