@@ -58,8 +58,10 @@ batter_instance <- R6::R6Class(
     
     generate_outcome_timeseries = function(stat, p_hand = c('L','R'), pitch = 'all'){
       
+      message('Getting timeseries data')
       data <- self$compile_batted_timeseries(measure = stat, p_hand, pitch)
       
+      message('Building Plot')
       plot <- ggplot() +
         geom_line(data = data, aes(x = as.Date(game_date), y = value))  +
         scale_x_date(date_breaks = "1 month")
@@ -69,6 +71,7 @@ batter_instance <- R6::R6Class(
     
     generate_spary_chart = function(filters=list(), bucket='None'){
       
+      message("Building spray chart")
       data <- self$data %>% filter(in_play)
 
       for(f in names(filters)){
@@ -76,12 +79,20 @@ batter_instance <- R6::R6Class(
         data <- private$spary_filter(data, f, filters[[f]] )
       }
       
+      message("Data has been filtered")
+      
       plot <- self$spray_chart_base
+      cols <- c('hc_x','hc_y')
       
       if(bucket != 'None'){
         
+        message('Grouping data by ', bucket)
+        
+        cols <- c(cols, bucket)
         row_check <- NROW(data)
         data <- data[which(!is.na(data[bucket])),]
+        
+        message('Removed NAs from ', bucket)
         
         if(NROW(data) < row_check){
           
@@ -90,8 +101,13 @@ batter_instance <- R6::R6Class(
                   " used for colors had NAs. ", 
                   row_check-NROW(data), " rows removed")
           
+          
+          print('Columns are')
+          
         }
-        data <- data[c('hc_x','hc_y', shape, bucket)]
+        
+        message('Limiting columns to ', cols)
+        data <- data[cols]
         plot$data <- data
         plot$layers[[1]] <- geom_point(alpha = .75, 
                                        size = 1, stroke = 1,

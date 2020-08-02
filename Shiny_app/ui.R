@@ -31,7 +31,7 @@ ui <- fluidPage(
                                               selectInput("Season",
                                                           "Season",
                                                           c("2017","2018","2019","2020"),
-                                                          if_else(month(today()) < 4, 
+                                                          if_else(month(today()) < 6, 
                                                                   as.numeric(year(today())) - 1, 
                                                                   year(today()))),
                                               
@@ -64,8 +64,8 @@ ui <- fluidPage(
                                                          c('Pitch Speed', 'Spin Rate'),''),
                                              
                                              selectInput("stat_type", "Hitting Statistic", 
-                                                         c('WOBA','ISO','Exit Velocity','
-                                                           Launch Angle','Estimated WOBA'),
+                                                         c('WOBA','ISO','Exit Velocity',
+                                                           'Launch Angle','Estimated WOBA'),
                                                          'WOBA'),
                                              
                                              
