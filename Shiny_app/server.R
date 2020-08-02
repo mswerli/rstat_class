@@ -64,6 +64,12 @@ server <- function(input, output,session) {
       shinyjs::showElement(id='gen_viz')
       shinyjs::showElement(id='viz')
       shinyjs::hideElement(id='filters')
+      shinyjs::hideElement(id='stat_type')
+      shinyjs::hideElement(id='outcomes')
+      shinyjs::hideElement(id='multi_pitch_types')
+      shinyjs::hideElement(id='p_hand_multi')
+      shinyjs::hideElement(id='filters')
+      shinyjs::hideElement(id='group')
       
       updateSelectInput(
         session,
@@ -324,7 +330,7 @@ server <- function(input, output,session) {
       
       
       output$plot <- 
-        renderPlot({ player_hitter$generate_outcome_timeseries(stat = hit_measure,
+        renderPlot({ player_hitter$generate_outcome_timeseries(stat = trimws(hit_measure,'both'),
                                                                p_hand = hand_filter,
                                                                pitch = pitch_filter)})
       shinyjs::show("plot")
@@ -341,7 +347,8 @@ server <- function(input, output,session) {
       group_map <- switch(input$group,
                             "Pitcher Throws" = 'p_throws',
                             "Outcome" = 'events',
-                            "Pitch Type" = 'pitch_name')
+                            "Pitch Type" = 'pitch_name',
+                            "None" = "None")
       
       message(group_map)
       
